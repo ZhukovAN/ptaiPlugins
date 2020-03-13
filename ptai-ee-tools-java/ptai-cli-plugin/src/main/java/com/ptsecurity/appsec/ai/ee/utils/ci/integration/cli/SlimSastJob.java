@@ -114,6 +114,14 @@ public class SlimSastJob extends Base {
                         .desc("Folder where AST reports are to be stored")
                         .argName("folder")
                         .hasArg(true).build());
+
+        options.addOption(
+                Option.builder()
+                        .longOpt("test")
+                        .required(false)
+                        .desc("Test mode")
+                        .hasArg(false).build());
+
         try {
             cli = parser.parse(options, args);
             url = new URL(cli.getOptionValue("url").replaceAll("^\"|\"$", ""));
@@ -138,6 +146,7 @@ public class SlimSastJob extends Base {
             output = new File(output).getAbsolutePath();
 
             verbose = cli.hasOption("verbose");
+            test = cli.hasOption("verbose");
         } catch (ParseException | IOException e) {
             HelpFormatter fmt = new HelpFormatter();
             fmt.printHelp("java -jar generic-client-lib.jar", options, true);
@@ -157,6 +166,10 @@ public class SlimSastJob extends Base {
     protected String username = null;
     protected String token = null;
     protected String output = null;
+
+    protected boolean test = false;
+
+
 
     public void main(String[] args) {
         switch (execute(args)) {
@@ -181,6 +194,20 @@ public class SlimSastJob extends Base {
     }
 
     protected PtaiResultStatus execute() {
+        if (test) {
+            TestGracefulShutdown shutdown = new TestGracefulShutdown();
+            Runtime.getRuntime().addShutdownHook(shutdown);
+            do {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    System.out.println("InterruptedException");
+                    e.printStackTrace();
+                    break;
+                }
+            } while (true);
+            return PtaiResultStatus.ABORTED;
+        }
         Client client = null;
         Integer scanId = null;
         try {
@@ -268,6 +295,12 @@ public class SlimSastJob extends Base {
                     log("Build %d stop failed", scanId);
                 }
             }
+        }
+    }
+
+    class TestGracefulShutdown extends Thread {
+        public void run() {
+            System.out.println("Graceful shutdown");
         }
     }
 }
